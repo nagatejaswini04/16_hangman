@@ -29,11 +29,14 @@ class HangmanGame:
     def guess(self, letter):
         if len(letter) != 1 or not letter.isalpha():
             return "Enter one letter."
-        if letter in self.guessed:
+
+        if letter in self.guessed or letter in self.wrong:
             return "Already guessed."
+
         if letter in self.secret:
             self.guessed.add(letter)
             return "Correct."
+
         self.wrong.add(letter)
         self.lives -= 1
         return "Wrong."
@@ -51,13 +54,17 @@ class HangmanGame:
             print("\nWord:", self.masked())
             print("Wrong:", " ".join(sorted(self.wrong)) or "-")
             print("Lives:", self.lives, "Score:", self.score, "Streak:", self.streak)
+
             raw = input("Letter, /hint, or /quit: ").strip().lower()
+
             if raw == "/quit":
                 return False
+
             if raw == "/hint":
                 hint = self.use_hint()
                 print(hint if hint else "Hint already used.")
                 continue
+
             print(self.guess(raw))
 
         if self.won():
@@ -73,18 +80,25 @@ class HangmanGame:
     def run(self):
         print("Hangman Challenge")
         print("A session consists of multiple rounds.")
+
         while True:
             print("\nCategories:", ", ".join(WORDS))
             raw = input("Choose category or q: ").strip().lower()
+
             if raw == "q":
                 return
+
             if raw not in WORDS:
                 print("Unknown category.")
                 continue
+
             self.category = raw
+
             if not self.play_round():
                 return
+
             again = input("Another round? [y/n]: ").strip().lower()
+
             if again != "y":
                 print("Final score:", self.score, " Streak:", self.streak)
                 return
