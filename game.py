@@ -7,21 +7,46 @@ class HangmanGame:
     def __init__(self):
         self.score = 0
         self.streak = 0
+
+        # Session-level state
+        self.stats = SessionStats()
+
+        # Round-level state
         self.category = "technology"
+        self.difficulty = "medium"
         self.secret = ""
         self.guessed = set()
         self.wrong = set()
         self.lives = 6
         self.hint_used = False
 
-        # Session statistics persist across all rounds
-        self.stats = SessionStats()
+        # Difficulty rules
+        self.difficulty_rules = {
+            "easy": {
+                "lives": 8,
+                "base_score": 3,
+                "hint_penalty": 1
+            },
+            "medium": {
+                "lives": 6,
+                "base_score": 5,
+                "hint_penalty": 2
+            },
+            "hard": {
+                "lives": 4,
+                "base_score": 7,
+                "hint_penalty": 3
+            }
+        }
 
     def start_round(self):
         self.secret = random.choice(WORDS[self.category])
         self.guessed.clear()
         self.wrong.clear()
-        self.lives = 6
+
+        # Set lives according to the current round's difficulty
+        self.lives = self.difficulty_rules[self.difficulty]["lives"]
+
         self.hint_used = False
 
     def masked(self):
@@ -40,7 +65,8 @@ class HangmanGame:
         if len(letter) != 1 or not letter.isalpha():
             return "Enter one letter."
 
-        # Task 1: prevent repeated correct or wrong guesses
+        # Task 1: repeated correct/wrong guesses
+        # must not consume another life
         if letter in self.guessed or letter in self.wrong:
             return "Already guessed."
 
@@ -57,7 +83,13 @@ class HangmanGame:
             return None
 
         self.hint_used = True
-        self.score = max(0, self.score - 1)
+
+        # Task 3: hint penalty depends on difficulty
+        hint_penalty = self.difficulty_rules[
+            self.difficulty
+        ]["hint_penalty"]
+
+        self.score = max(0, self.score - hint_penalty)
 
         return HINTS.get(
             self.secret,
@@ -74,6 +106,8 @@ class HangmanGame:
                 " ".join(sorted(self.wrong)) or "-"
             )
             print(
+                "Difficulty:",
+                self.difficulty.capitalize(),
                 "Lives:",
                 self.lives,
                 "Score:",
@@ -100,18 +134,25 @@ class HangmanGame:
 
         if self.won():
             self.streak += 1
-            self.score += 5 + self.streak
 
-            # Task 2: record completed winning round
+            # Difficulty changes the base score.
+            base_score = self.difficulty_rules[
+                self.difficulty
+            ]["base_score"]
+
+            # Existing streak behavior is preserved.
+            self.score += base_score + self.streak
+
+            # Task 2: record completed winning round.
             self.stats.record(True, self.streak)
 
             print("Solved:", self.secret)
             return True
 
-        # Round lost
+        # Lost round
         self.streak = 0
 
-        # Task 2: record completed losing round
+        # Task 2: record completed losing round.
         self.stats.record(False, self.streak)
 
         print(
@@ -125,6 +166,7 @@ class HangmanGame:
         print("A session consists of multiple rounds.")
 
         while True:
+            # Category selection is preserved
             print(
                 "\nCategories:",
                 ", ".join(WORDS)
@@ -142,6 +184,21 @@ class HangmanGame:
                 continue
 
             self.category = raw
+
+            # Task 3: choose difficulty for each round
+            print(
+                "\nDifficulty: easy, medium, hard"
+            )
+
+            difficulty = input(
+                "Choose difficulty: "
+            ).strip().lower()
+
+            if difficulty not in self.difficulty_rules:
+                print("Unknown difficulty. Using medium.")
+                difficulty = "medium"
+
+            self.difficulty = difficulty
 
             if not self.play_round():
                 return
