@@ -5,10 +5,9 @@ from stats import SessionStats
 
 class HangmanGame:
     def __init__(self):
+        # Session-level state
         self.score = 0
         self.streak = 0
-
-        # Session-level state
         self.stats = SessionStats()
 
         # Round-level state
@@ -44,8 +43,10 @@ class HangmanGame:
         self.guessed.clear()
         self.wrong.clear()
 
-        # Set lives according to the current round's difficulty
-        self.lives = self.difficulty_rules[self.difficulty]["lives"]
+        # Lives depend on the selected difficulty
+        self.lives = self.difficulty_rules[
+            self.difficulty
+        ]["lives"]
 
         self.hint_used = False
 
@@ -62,11 +63,13 @@ class HangmanGame:
         )
 
     def guess(self, letter):
+        # Invalid input must not change game state
         if len(letter) != 1 or not letter.isalpha():
             return "Enter one letter."
 
-        # Task 1: repeated correct/wrong guesses
-        # must not consume another life
+        # Task 1:
+        # Repeated correct or wrong guesses do not
+        # consume another life.
         if letter in self.guessed or letter in self.wrong:
             return "Already guessed."
 
@@ -84,12 +87,15 @@ class HangmanGame:
 
         self.hint_used = True
 
-        # Task 3: hint penalty depends on difficulty
+        # Hint penalty depends on difficulty
         hint_penalty = self.difficulty_rules[
             self.difficulty
         ]["hint_penalty"]
 
-        self.score = max(0, self.score - hint_penalty)
+        self.score = max(
+            0,
+            self.score - hint_penalty
+        )
 
         return HINTS.get(
             self.secret,
@@ -120,45 +126,69 @@ class HangmanGame:
                 "Letter, /hint, or /quit: "
             ).strip().lower()
 
+            # Quit command
             if raw == "/quit":
                 return False
 
+            # Hint command
             if raw == "/hint":
                 hint = self.use_hint()
+
+                if hint is None:
+                    print("Hint already used.")
+                else:
+                    print(hint)
+
+                continue
+
+            # Unknown command
+            if raw.startswith("/"):
                 print(
-                    hint if hint else "Hint already used."
+                    "Unknown command. "
+                    "Use /hint or /quit."
                 )
                 continue
 
-            print(self.guess(raw))
+            # Normal letter input
+            # guess() handles invalid letters and
+            # guarantees that invalid input does not
+            # change the game state.
+            feedback = self.guess(raw)
+            print(feedback)
 
+        # Winning condition
         if self.won():
             self.streak += 1
 
-            # Difficulty changes the base score.
             base_score = self.difficulty_rules[
                 self.difficulty
             ]["base_score"]
 
-            # Existing streak behavior is preserved.
             self.score += base_score + self.streak
 
-            # Task 2: record completed winning round.
-            self.stats.record(True, self.streak)
+            # Task 2: record completed round
+            self.stats.record(
+                True,
+                self.streak
+            )
 
             print("Solved:", self.secret)
             return True
 
-        # Lost round
+        # Losing condition
         self.streak = 0
 
-        # Task 2: record completed losing round.
-        self.stats.record(False, self.streak)
+        # Task 2: record completed round
+        self.stats.record(
+            False,
+            self.streak
+        )
 
         print(
             "Out of lives. The word was:",
             self.secret
         )
+
         return True
 
     def run(self):
@@ -166,7 +196,7 @@ class HangmanGame:
         print("A session consists of multiple rounds.")
 
         while True:
-            # Category selection is preserved
+            # Category selection
             print(
                 "\nCategories:",
                 ", ".join(WORDS)
@@ -176,38 +206,52 @@ class HangmanGame:
                 "Choose category or q: "
             ).strip().lower()
 
+            # Quit from category selection
             if raw == "q":
                 return
 
+            # Invalid category must not change state
             if raw not in WORDS:
                 print("Unknown category.")
                 continue
 
             self.category = raw
 
-            # Task 3: choose difficulty for each round
-            print(
-                "\nDifficulty: easy, medium, hard"
-            )
+            # Difficulty selection
+            while True:
+                print(
+                    "\nDifficulty: easy, medium, hard"
+                )
 
-            difficulty = input(
-                "Choose difficulty: "
-            ).strip().lower()
+                difficulty = input(
+                    "Choose difficulty: "
+                ).strip().lower()
 
-            if difficulty not in self.difficulty_rules:
-                print("Unknown difficulty. Using medium.")
-                difficulty = "medium"
+                # Valid difficulty
+                if difficulty in self.difficulty_rules:
+                    self.difficulty = difficulty
+                    break
 
-            self.difficulty = difficulty
+                # Invalid difficulty:
+                # do not change the current difficulty
+                print(
+                    "Unknown difficulty. "
+                    "Choose easy, medium, or hard."
+                )
 
+            # Play round
             if not self.play_round():
                 return
 
+            # Ask for another round
             again = input(
                 "Another round? [y/n]: "
             ).strip().lower()
 
-            if again != "y":
+            if again == "y":
+                continue
+
+            if again == "n":
                 print(
                     "Final score:",
                     self.score,
@@ -215,3 +259,8 @@ class HangmanGame:
                     self.streak
                 )
                 return
+
+            # Invalid response:
+            # do not start another round accidentally.
+            print("Please enter y or n.")
+            return
