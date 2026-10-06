@@ -1,5 +1,6 @@
 import random
 from words import WORDS, HINTS
+from stats import SessionStats
 
 
 class HangmanGame:
@@ -13,6 +14,9 @@ class HangmanGame:
         self.lives = 6
         self.hint_used = False
 
+        # Session statistics persist across all rounds
+        self.stats = SessionStats()
+
     def start_round(self):
         self.secret = random.choice(WORDS[self.category])
         self.guessed.clear()
@@ -21,15 +25,22 @@ class HangmanGame:
         self.hint_used = False
 
     def masked(self):
-        return " ".join(ch if ch in self.guessed else "_" for ch in self.secret)
+        return " ".join(
+            ch if ch in self.guessed else "_"
+            for ch in self.secret
+        )
 
     def won(self):
-        return all(ch in self.guessed for ch in set(self.secret))
+        return all(
+            ch in self.guessed
+            for ch in set(self.secret)
+        )
 
     def guess(self, letter):
         if len(letter) != 1 or not letter.isalpha():
             return "Enter one letter."
 
+        # Task 1: prevent repeated correct or wrong guesses
         if letter in self.guessed or letter in self.wrong:
             return "Already guessed."
 
@@ -44,25 +55,45 @@ class HangmanGame:
     def use_hint(self):
         if self.hint_used:
             return None
+
         self.hint_used = True
         self.score = max(0, self.score - 1)
-        return HINTS.get(self.secret, "No hint available.")
+
+        return HINTS.get(
+            self.secret,
+            "No hint available."
+        )
 
     def play_round(self):
         self.start_round()
+
         while self.lives > 0 and not self.won():
             print("\nWord:", self.masked())
-            print("Wrong:", " ".join(sorted(self.wrong)) or "-")
-            print("Lives:", self.lives, "Score:", self.score, "Streak:", self.streak)
+            print(
+                "Wrong:",
+                " ".join(sorted(self.wrong)) or "-"
+            )
+            print(
+                "Lives:",
+                self.lives,
+                "Score:",
+                self.score,
+                "Streak:",
+                self.streak
+            )
 
-            raw = input("Letter, /hint, or /quit: ").strip().lower()
+            raw = input(
+                "Letter, /hint, or /quit: "
+            ).strip().lower()
 
             if raw == "/quit":
                 return False
 
             if raw == "/hint":
                 hint = self.use_hint()
-                print(hint if hint else "Hint already used.")
+                print(
+                    hint if hint else "Hint already used."
+                )
                 continue
 
             print(self.guess(raw))
@@ -70,11 +101,23 @@ class HangmanGame:
         if self.won():
             self.streak += 1
             self.score += 5 + self.streak
+
+            # Task 2: record completed winning round
+            self.stats.record(True, self.streak)
+
             print("Solved:", self.secret)
             return True
 
+        # Round lost
         self.streak = 0
-        print("Out of lives. The word was:", self.secret)
+
+        # Task 2: record completed losing round
+        self.stats.record(False, self.streak)
+
+        print(
+            "Out of lives. The word was:",
+            self.secret
+        )
         return True
 
     def run(self):
@@ -82,8 +125,14 @@ class HangmanGame:
         print("A session consists of multiple rounds.")
 
         while True:
-            print("\nCategories:", ", ".join(WORDS))
-            raw = input("Choose category or q: ").strip().lower()
+            print(
+                "\nCategories:",
+                ", ".join(WORDS)
+            )
+
+            raw = input(
+                "Choose category or q: "
+            ).strip().lower()
 
             if raw == "q":
                 return
@@ -97,8 +146,15 @@ class HangmanGame:
             if not self.play_round():
                 return
 
-            again = input("Another round? [y/n]: ").strip().lower()
+            again = input(
+                "Another round? [y/n]: "
+            ).strip().lower()
 
             if again != "y":
-                print("Final score:", self.score, " Streak:", self.streak)
+                print(
+                    "Final score:",
+                    self.score,
+                    " Streak:",
+                    self.streak
+                )
                 return
